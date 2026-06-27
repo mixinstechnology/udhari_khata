@@ -2,24 +2,111 @@
 
 ## Project Overview
 
-This is an Enterprise-grade Frontend Application built using:
+**Udhari Khata** — Smart Ledger Management System (Enterprise-grade frontend)
 
-* React 19+
-* TypeScript
-* Vite
-* React Router
-* Axios
-* React Hook Form
-* Zod Validation
-* Material UI (MUI)
-* Tailwind CSS (Optional)
-* Redux Toolkit
+Tech stack:
+
+* React 19+ (functional components, no class components)
+* TypeScript (strict mode — never use `any`)
+* Vite (build tool, dev server port 5173)
+* React Router DOM v6
+* Axios (via `src/services/apiService.tsx` — never call axios directly from pages)
+* React Toastify (toast position: `top-right`, styled in `styles.css`)
+* Inline styles + theme colors from `ThemeContext` (no Tailwind in pages)
+
+API base URL: `http://95.141.43.70:5007/` (from `VITE_API_BASE_URL`)
 
 Assume the tech stack is finalized.
 
 Do not spend tokens recommending alternative libraries unless explicitly requested.
 
 Focus on implementing business functionality.
+
+---
+
+## Implemented Features
+
+### Auth
+- Login page: `src/pages/Login.tsx`
+  - POST `/api/users/login` — `token: false`
+  - Stores `token` in `sessionStorage`, `user` + `userName` in `localStorage`
+  - Navigate to `/dashboard` on success
+
+### Dashboard
+- Page: `src/pages/Dashboard.tsx`
+- APIs used:
+  - GET `/api/report/admin-summary?createdBy={userId}&sort=asc` — summary cards
+  - GET `/api/party?page=&limit=&createdBy=&search=` — party list
+  - POST `/api/party` — add party (modal)
+  - PUT `/api/party/{id}` — update party (modal)
+
+### Party Management
+- Page: `src/pages/Party.tsx` — route `/master/party`
+- Same 4 party APIs as Dashboard
+- Full table with search, pagination, add/edit modal
+
+---
+
+## Routes
+
+| Path | Component | Auth |
+|------|-----------|------|
+| `/login` | Login | Public |
+| `/dashboard` | Dashboard | Private |
+| `/master/party` | PartyPage | Private |
+| `/` | → `/dashboard` | — |
+
+---
+
+## Existing Services & Types
+
+### `src/services/apiService.tsx` — `HttpService`
+- `.get<T>(url, options?)` — wraps global loader automatically
+- `.post<T>(url, options?)` — wraps global loader automatically
+- `.put<T>(url, options?)` — wraps global loader automatically
+- `.delete<T>(url, options?)`
+- Options: `{ data?, params?, token?: boolean, headers?, baseURL? }`
+- `token: false` → uses `VITE_DEFAULT_TOKEN` (for public endpoints like login)
+- `token: true` (default) → reads from `localStorage.getItem('token')`
+
+### `src/services/party.service.ts`
+- `getAdminSummary(createdBy)` → `GET /api/report/admin-summary`
+- `getPartyList(params)` → `GET /api/party`
+- `addParty(payload)` → `POST /api/party`
+- `updateParty(id, payload)` → `PUT /api/party/{id}`
+
+### `src/types/auth.types.ts`
+`LoginRequest`, `LoginUser`, `LoginResponse`
+
+### `src/types/party.types.ts`
+`Party`, `PartyPayload`, `UpdatePartyPayload`, `PartyListResponse`, `PartyListParams`, `AdminSummary`, `AdminSummaryResponse`, `MutationResponse`
+
+---
+
+## Global Infrastructure
+
+### Loader
+- `src/contexts/LoaderContext.tsx` — `LoaderProvider` + `useLoader()`
+- `src/utils/globalLoader.ts` — `registerLoader` / `getGlobalLoader()`
+- `src/utils/Loader.tsx` — full-screen spinner, shown automatically on every `httpService` call
+- **Do not add manual loading spinners** — the global loader handles it
+
+### Theme
+- `src/contexts/ThemeContext.tsx` — `useTheme()` → `{ currentTheme, setThemeName, themeName }`
+- 3 themes: `professional` | `ocean` | `warm` (defined in `src/constants/themes.ts`)
+- Always use `currentTheme.colors.X` for colors, never hardcode hex values in pages
+- Available color keys: `primary`, `secondary`, `accent`, `background`, `surface`, `text`, `textLight`, `border`, `success`, `error`, `warning`
+
+### Toast
+- Always use `toast.success()` / `toast.error()` from `react-toastify`
+- Position: `top-right` (set in `App.tsx` ToastContainer)
+- Styled with gradients in `styles.css` — do not override inline
+
+### Storage
+- `src/utils/storage.util.ts` — `setCookie`, `getCookie`, `removeCookie`
+- Token: `sessionStorage` (checked by `PrivateRoute` in `App.tsx`)
+- User object: `localStorage.getItem('user')` (JSON)
+- User name: `localStorage.getItem('userName')`
 
 ---
 

@@ -105,25 +105,3 @@ body {
   }
 }
 
-/* Toast Customization */
-.Toastify__toast-container {
-  width: auto;
-  max-width: 400px;
-  right: 20px;
-  bottom: 20px;
-}
-
-.Toastify__toast {
-  border-radius: 8px;
-  font-weight: 500;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
-}
-
-.Toastify__toast--success {
-  background: #27AE60;
-}
-
-.Toastify__toast--error {
-  background: #E74C3C;
-}
-
