@@ -336,7 +336,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 onMouseLeave={e => { if (!isActive('/report/dues')) e.currentTarget.style.background = 'transparent' }}
               >
                 <FileTextIcon />
-                Pending Party Report
+                Party Details
               </Link>
             </div>
           )}

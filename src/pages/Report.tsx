@@ -3,8 +3,7 @@ import type { CSSProperties } from 'react'
 import { toast } from 'react-toastify'
 import { useTheme } from '../contexts/ThemeContext'
 import { getPendingParties, getPartyDetails } from '../services/report.service'
-import { approveTransaction, rejectTransaction } from '../services/transaction.service'
-import type { PendingParty, PartyDetailTransaction } from '../types/report.types'
+import { PendingParty, PartyDetailTransaction } from '../types/report.types'
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -64,6 +63,20 @@ const ArrowUpDownIcon = () => (
     <polyline points="17 16 12 21 7 16"/>
   </svg>
 )
+const DownloadIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+    <polyline points="7 10 12 15 17 10"/>
+    <line x1="12" y1="15" x2="12" y2="3"/>
+  </svg>
+)
+const CalendarIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+    <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+    <line x1="3" y1="10" x2="21" y2="10"/>
+  </svg>
+)
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -75,12 +88,168 @@ const getStoredUser = (): { _id: string; name: string; company: string } => {
   catch { return { _id: '', name: 'User', company: '' } }
 }
 
+const MONTHS_SHORT: Record<string, number> = {
+  jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11,
+}
+
+const parseTxDate = (dateStr: string): Date => {
+  if (!dateStr) return new Date(0)
+  // ISO format: "2026-05-23T..."
+  if (/^\d{4}-/.test(dateStr)) return new Date(dateStr)
+  // "23-may-2026" format
+  const parts = dateStr.split('-')
+  if (parts.length === 3) {
+    const d = parseInt(parts[0], 10)
+    const m = MONTHS_SHORT[parts[1].toLowerCase()] ?? 0
+    const y = parseInt(parts[2], 10)
+    return new Date(y, m, d)
+  }
+  return new Date(dateStr)
+}
+
 const displayTxDate = (dateStr: string): string => {
   if (!dateStr) return '—'
-  if (/^\d{4}-/.test(dateStr)) {
-    return new Date(dateStr).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+  const d = parseTxDate(dateStr)
+  return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+type RangeKey = 'last10' | 'thisMonth' | '1year' | 'all'
+
+const RANGE_OPTIONS: { key: RangeKey; label: string }[] = [
+  { key: 'last10',    label: 'Last 10'     },
+  { key: 'thisMonth', label: 'This Month'  },
+  { key: '1year',     label: '1 Year'      },
+  { key: 'all',       label: 'Entire'      },
+]
+
+const applyRange = (txs: PartyDetailTransaction[], range: RangeKey): PartyDetailTransaction[] => {
+  if (!txs.length) return txs
+  const now = new Date()
+  if (range === 'last10') return [...txs].slice(-10)
+  if (range === 'thisMonth') {
+    return txs.filter(t => {
+      const d = parseTxDate(t.transactionDate)
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
+    })
   }
-  return dateStr
+  if (range === '1year') {
+    const cutoff = new Date(now); cutoff.setFullYear(now.getFullYear() - 1)
+    return txs.filter(t => parseTxDate(t.transactionDate) >= cutoff)
+  }
+  return txs // 'all'
+}
+
+const downloadPDF = (
+  party: PendingParty | null,
+  partyName: string,
+  txs: PartyDetailTransaction[],
+  rangeLabel: string,
+) => {
+  const name    = party?.name || partyName
+  const mobile  = party?.mobile || '—'
+  const email   = party?.email  || '—'
+  const collect = formatCurrency(party?.pendingToCollect ?? 0)
+  const pay     = formatCurrency(party?.pendingToPay ?? 0)
+  const balance = formatCurrency(Math.abs(party?.currentBalance ?? 0))
+  const balSign = (party?.currentBalance ?? 0) >= 0 ? 'CR' : 'DR'
+  const today   = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+
+  const rows = txs.map((tx, i) => {
+    const typeColor  = tx.type === 'credit' ? '#16a34a' : '#dc2626'
+    const sKey       = tx.status.toUpperCase()
+    const statusColor = sKey === 'APPROVED' ? '#16a34a' : sKey === 'REJECTED' ? '#dc2626' : '#d97706'
+    return `
+      <tr class="${i % 2 === 0 ? 'even' : ''}">
+        <td>${i + 1}</td>
+        <td style="font-weight:700;color:${typeColor}">${formatCurrency(tx.amount)}</td>
+        <td><span class="badge" style="background:${typeColor}18;color:${typeColor}">${tx.type === 'credit' ? 'CR' : 'DR'}</span></td>
+        <td><span class="badge" style="background:#f3f4f6;color:#374151">${tx.paymentMode}</span></td>
+        <td>${displayTxDate(tx.transactionDate)}</td>
+        <td><span class="badge" style="background:${statusColor}18;color:${statusColor}">${sKey}</span></td>
+        <td class="remark">${tx.remark || '—'}</td>
+      </tr>`
+  }).join('')
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>${name} — Party Details</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;font-size:12px;color:#111827;background:#fff;padding:28px 32px}
+    .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid #f59e0b}
+    .brand{font-size:20px;font-weight:800;color:#d97706;letter-spacing:-0.3px}
+    .brand span{display:block;font-size:11px;font-weight:500;color:#6b7280;margin-top:2px;letter-spacing:0}
+    .meta{text-align:right;font-size:11px;color:#6b7280;line-height:1.6}
+    .section-title{font-size:10px;font-weight:700;color:#f59e0b;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px}
+    .info-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}
+    .info-box{background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 14px}
+    .info-label{font-size:10px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px}
+    .info-value{font-size:13px;font-weight:600;color:#111827}
+    .fin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+    .fin-card{border-radius:8px;padding:12px 14px;border:1px solid}
+    .fin-card .label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px}
+    .fin-card .value{font-size:16px;font-weight:800}
+    .green{background:#f0fdf4;border-color:#bbf7d0;color:#16a34a}
+    .red  {background:#fef2f2;border-color:#fecaca;color:#dc2626}
+    .gold {background:#fffbeb;border-color:#fde68a;color:#d97706}
+    .range-badge{display:inline-block;background:#eff6ff;border:1px solid #bfdbfe;color:#2563eb;padding:2px 10px;border-radius:20px;font-size:10px;font-weight:700;margin-bottom:14px}
+    table{width:100%;border-collapse:collapse}
+    thead tr{background:#1f2937;color:#fff}
+    thead th{padding:9px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase}
+    tbody td{padding:8px 10px;border-bottom:1px solid #f3f4f6;font-size:11px;vertical-align:middle}
+    tr.even td{background:#fafafa}
+    .badge{display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700}
+    .remark{color:#6b7280;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .footer{margin-top:20px;padding-top:12px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:10px;color:#9ca3af}
+    @media print{body{padding:10px 14px}@page{margin:10mm;size:A4 landscape}}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="brand">Udhari Khata<span>Smart Ledger Management</span></div>
+    </div>
+    <div class="meta">
+      <div style="font-size:14px;font-weight:700;color:#111827">${name}</div>
+      <div>${mobile} ${email !== '—' ? '· ' + email : ''}</div>
+      <div>Generated: ${today}</div>
+    </div>
+  </div>
+
+  <div class="section-title">Financial Summary</div>
+  <div class="fin-grid">
+    <div class="fin-card green"><div class="label">Pending To Collect</div><div class="value">${collect}</div></div>
+    <div class="fin-card red">  <div class="label">Pending To Pay</div>    <div class="value">${pay}</div></div>
+    <div class="fin-card gold"> <div class="label">Current Balance</div>   <div class="value">${balance} <span style="font-size:11px">${balSign}</span></div></div>
+  </div>
+
+  <div class="section-title">Transaction History</div>
+  <div class="range-badge">${rangeLabel} — ${txs.length} transaction${txs.length !== 1 ? 's' : ''}</div>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th><th>Amount</th><th>Type</th><th>Mode</th><th>Date</th><th>Status</th><th>Remark</th>
+      </tr>
+    </thead>
+    <tbody>${rows || '<tr><td colspan="7" style="text-align:center;padding:20px;color:#9ca3af">No transactions in this period</td></tr>'}</tbody>
+  </table>
+
+  <div class="footer">
+    <span>Udhari Khata — Party Details Report</span>
+    <span>Printed on ${today}</span>
+  </div>
+
+  <script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}<\/script>
+</body>
+</html>`
+
+  const win = window.open('', '_blank', 'width=900,height=700')
+  if (win) {
+    win.document.write(html)
+    win.document.close()
+  }
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -90,19 +259,22 @@ export default function Report() {
   const c = currentTheme.colors
   const user = getStoredUser()
 
-  const [parties, setParties] = useState<PendingParty[]>([])
-  const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
-  const [sortField, setSortField] = useState<'currentBalance' | 'pendingToCollect' | 'pendingToPay'>('currentBalance')
-  const [sortAsc, setSortAsc] = useState(false)
+  // ── Party list state ──
+  const [parties, setParties]         = useState<PendingParty[]>([])
+  const [loading, setLoading]         = useState(true)
+  const [search, setSearch]           = useState('')
+  const [sortField, setSortField]     = useState<'currentBalance' | 'pendingToCollect' | 'pendingToPay'>('currentBalance')
+  const [sortAsc, setSortAsc]         = useState(false)
 
-  const [selectedPartyId, setSelectedPartyId] = useState<string | null>(null)
+  // ── Details modal state ──
+  const [selectedPartyId,   setSelectedPartyId]   = useState<string | null>(null)
   const [selectedPartyName, setSelectedPartyName] = useState('')
-  const [selectedParty, setSelectedParty] = useState<PendingParty | null>(null)
-  const [details, setDetails] = useState<PartyDetailTransaction[] | null>(null)
-  const [detailsLoading, setDetailsLoading] = useState(false)
-  const [detailsError, setDetailsError] = useState<string | null>(null)
-
+  const [selectedParty,     setSelectedParty]     = useState<PendingParty | null>(null)
+  const [details,           setDetails]           = useState<PartyDetailTransaction[] | null>(null)
+  const [detailsLoading,    setDetailsLoading]    = useState(false)
+  const [detailsError,      setDetailsError]      = useState<string | null>(null)
+  const [txRange,           setTxRange]           = useState<RangeKey>('last10')
+  // ── Fetch party list ──
   const fetchParties = useCallback(async () => {
     if (!user._id) return
     setLoading(true)
@@ -115,38 +287,33 @@ export default function Report() {
 
   useEffect(() => { fetchParties() }, [fetchParties])
 
+  // ── Fetch party details ──
   const loadDetails = useCallback(async (partyId: string, createdBy: string) => {
-    setDetails(null)
-    setDetailsError(null)
-    setDetailsLoading(true)
+    setDetails(null); setDetailsError(null); setDetailsLoading(true)
     try {
       const res = await getPartyDetails(createdBy, partyId)
       if (res.success) {
         setDetails(res.data)
       } else {
         const msg = res.message || 'Failed to fetch party details'
-        setDetailsError(msg)
-        toast.error(msg)
+        setDetailsError(msg); toast.error(msg)
       }
     } catch {
       setDetailsError('Failed to load party details. Please try again.')
-    } finally {
-      setDetailsLoading(false)
-    }
+    } finally { setDetailsLoading(false) }
   }, [])
 
   const openDetails = (party: PendingParty) => {
     setSelectedPartyId(party.partyId)
     setSelectedPartyName(party.name)
     setSelectedParty(party)
+    setTxRange('last10')
     loadDetails(party.partyId, user._id)
   }
 
   const closeDetails = () => {
-    setSelectedPartyId(null)
-    setSelectedParty(null)
-    setDetails(null)
-    setDetailsError(null)
+    setSelectedPartyId(null); setSelectedParty(null)
+    setDetails(null); setDetailsError(null)
   }
 
   const toggleSort = (field: typeof sortField) => {
@@ -155,29 +322,31 @@ export default function Report() {
   }
 
   // ── Derived ──
-
   const filtered = parties
     .filter(p =>
       !search ||
       p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.mobile.includes(search) 
-      // (p.area || '').toLowerCase().includes(search.toLowerCase())
+      p.mobile.includes(search)
     )
     .sort((a, b) => {
       const diff = a[sortField] - b[sortField]
       return sortAsc ? diff : -diff
     })
 
-  const totalCredit    = parties.reduce((s, p) => s + (p.pendingToCollect || 0), 0)
-  const totalDebit     = parties.reduce((s, p) => s + (p.pendingToPay || 0), 0)
-  const totalNet       = parties.reduce((s, p) => s + (p.currentBalance || 0), 0)
+  const totalCredit = parties.reduce((s, p) => s + (p.pendingToCollect || 0), 0)
+  const totalDebit  = parties.reduce((s, p) => s + (p.pendingToPay || 0), 0)
+  const totalNet    = parties.reduce((s, p) => s + (p.currentBalance || 0), 0)
+
+  const visibleDetails = details ? applyRange(details, txRange) : []
 
   const summaryCards = [
-    { label: 'Parties with Balance', value: String(parties.length), icon: <UsersIcon />, color: c.primary, grad: `linear-gradient(135deg,${c.primary},${c.secondary})` },
-    { label: 'Total Credit ', value: formatCurrency(totalCredit), icon: <TrendingUpIcon />, color: '#10B981', grad: 'linear-gradient(135deg,#10B981,#059669)' },
-    { label: 'Total Debit ', value: formatCurrency(totalDebit), icon: <TrendingDownIcon />, color: '#EF4444', grad: 'linear-gradient(135deg,#EF4444,#DC2626)' },
-    { label: 'Net Outstanding', value: formatCurrency(Math.abs(totalNet)), icon: <ScaleIcon />, color: '#F59E0B', grad: 'linear-gradient(135deg,#F59E0B,#D97706)' },
+    { label: 'Parties with Balance', value: String(parties.length),            icon: <UsersIcon />,        color: c.primary,  grad: `linear-gradient(135deg,${c.primary},${c.secondary})` },
+    { label: 'Total Credit',          value: formatCurrency(totalCredit),      icon: <TrendingUpIcon />,   color: '#10B981',   grad: 'linear-gradient(135deg,#10B981,#059669)' },
+    { label: 'Total Debit',           value: formatCurrency(totalDebit),       icon: <TrendingDownIcon />, color: '#EF4444',   grad: 'linear-gradient(135deg,#EF4444,#DC2626)' },
+    { label: 'Net Outstanding',       value: formatCurrency(Math.abs(totalNet)),icon: <ScaleIcon />,       color: '#F59E0B',   grad: 'linear-gradient(135deg,#F59E0B,#D97706)' },
   ]
+
+  // ─── Styles ───────────────────────────────────────────────────────────────────
 
   const labelStyle: CSSProperties = {
     display: 'block', fontSize: '11px', fontWeight: '700', color: c.textLight,
@@ -204,6 +373,15 @@ export default function Report() {
     REJECTED: { label: 'Rejected', bg: '#EF444418', color: '#EF4444' },
   }
 
+  const rangePillStyle = (active: boolean): CSSProperties => ({
+    display: 'flex', alignItems: 'center', gap: '5px',
+    padding: '5px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: active ? '700' : '500',
+    border: `1.5px solid ${active ? c.primary : c.border}`,
+    background: active ? `${c.primary}15` : 'transparent',
+    color: active ? c.primary : c.textLight,
+    cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+  })
+
   // ─── Render ──────────────────────────────────────────────────────────────────
 
   return (
@@ -216,8 +394,8 @@ export default function Report() {
             <FileTextIcon />
           </div>
           <div>
-            <h1 style={{ margin: 0, fontSize: '22px', fontWeight: '800', color: c.text }}>Pending Party Report</h1>
-            <p style={{ margin: '2px 0 0', fontSize: '13px', color: c.textLight }}>Parties with pending to collect or pending to pay balances</p>
+            <h1 style={{ margin: 0, fontSize: '22px', fontWeight: '800', color: c.text }}>Party Details</h1>
+            <p style={{ margin: '2px 0 0', fontSize: '13px', color: c.textLight }}>View party balances and full transaction history</p>
           </div>
         </div>
         <button onClick={fetchParties}
@@ -255,7 +433,7 @@ export default function Report() {
           </p>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', border: `1.5px solid ${c.border}`, borderRadius: '8px', padding: '7px 12px', background: c.background }}>
             <span style={{ color: c.textLight, display: 'flex' }}><SearchIcon /></span>
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, mobile, or area…"
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or mobile…"
               style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: '13px', color: c.text, fontFamily: 'inherit', width: '220px' }} />
           </div>
         </div>
@@ -268,23 +446,16 @@ export default function Report() {
                 <th style={thCol}>#</th>
                 <th style={thCol}>Party</th>
                 <th style={thCol}>Mobile</th>
-                
-                <th style={thCol}>
-                 Pending ToCollect  <SortBtn field="pendingToCollect" />
-                </th>
-                <th style={thCol}>
-                 ToPay  <SortBtn field="pendingToPay" />
-                </th>
-                <th style={thCol}>
-                  Current Balance <SortBtn field="currentBalance" />
-                </th>
+                <th style={thCol}>Pending To Collect <SortBtn field="pendingToCollect" /></th>
+                <th style={thCol}>To Pay <SortBtn field="pendingToPay" /></th>
+                <th style={thCol}>Current Balance <SortBtn field="currentBalance" /></th>
                 <th style={thCol}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading
                 ? Array.from({ length: 5 }).map((_, i) => (
-                    <tr key={i}>{Array.from({ length: 8 }).map((__, j) => (
+                    <tr key={i}>{Array.from({ length: 7 }).map((__, j) => (
                       <td key={j} style={{ padding: '14px 16px', borderBottom: `1px solid ${c.border}` }}>
                         <div style={{ height: '13px', background: c.border, borderRadius: '4px', animation: 'rptPulse 1.5s ease-in-out infinite', opacity: 0.6 }} />
                       </td>
@@ -292,7 +463,7 @@ export default function Report() {
                   ))
                 : filtered.length === 0
                 ? (
-                    <tr><td colSpan={8} style={{ padding: '60px 24px', textAlign: 'center' }}>
+                    <tr><td colSpan={7} style={{ padding: '60px 24px', textAlign: 'center' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', color: c.textLight }}>
                         <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: `${c.border}60`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><FileTextIcon /></div>
                         <p style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: c.text }}>
@@ -321,10 +492,9 @@ export default function Report() {
                             </div>
                           </div>
                         </td>
-                        <td style={{ padding: '12px 16px', borderBottom: `1px solid ${c.border}`, color: c.text }}>{party?.mobile}</td>
-                        {/* <td style={{ padding: '12px 16px', borderBottom: `1px solid ${c.border}`, color: c.textLight }}>{party.area || '—'}</td> */}
+                        <td style={{ padding: '12px 16px', borderBottom: `1px solid ${c.border}`, color: c.text }}>{party.mobile}</td>
                         <td style={{ padding: '12px 16px', borderBottom: `1px solid ${c.border}`, color: '#10B981', fontWeight: '700' }}>
-                          {formatCurrency(party?.pendingToCollect)}
+                          {formatCurrency(party.pendingToCollect)}
                         </td>
                         <td style={{ padding: '12px 16px', borderBottom: `1px solid ${c.border}`, color: '#EF4444', fontWeight: '700' }}>
                           {formatCurrency(party.pendingToPay)}
@@ -339,9 +509,9 @@ export default function Report() {
                         </td>
                         <td style={{ padding: '12px 16px', borderBottom: `1px solid ${c.border}` }}>
                           <button onClick={() => openDetails(party)}
-                            style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 12px', background: '#F59E0B12', color: '#D97706', border: '1px solid #F59E0B30', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s', whiteSpace: 'nowrap' }}
-                            onMouseEnter={e => { e.currentTarget.style.background = '#F59E0B'; e.currentTarget.style.color = 'white' }}
-                            onMouseLeave={e => { e.currentTarget.style.background = '#F59E0B12'; e.currentTarget.style.color = '#D97706' }}
+                            style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 14px', background: '#F59E0B12', color: '#D97706', border: '1.5px solid #F59E0B30', borderRadius: '8px', fontSize: '12px', fontWeight: '700', cursor: 'pointer', transition: 'all 0.2s', whiteSpace: 'nowrap' }}
+                            onMouseEnter={e => { e.currentTarget.style.background = '#F59E0B'; e.currentTarget.style.color = 'white'; e.currentTarget.style.borderColor = '#F59E0B' }}
+                            onMouseLeave={e => { e.currentTarget.style.background = '#F59E0B12'; e.currentTarget.style.color = '#D97706'; e.currentTarget.style.borderColor = '#F59E0B30' }}
                           >
                             <EyeIcon /> View Details
                           </button>
@@ -357,21 +527,44 @@ export default function Report() {
 
       {/* ── Party Details Modal ── */}
       {selectedPartyId && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.52)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', animation: 'rptFadeIn 0.2s ease' }}
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.52)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', animation: 'rptFadeIn 0.2s ease' }}
           onClick={e => { if (e.target === e.currentTarget) closeDetails() }}
         >
           <div className="rpt-modal" style={{ background: c.surface, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 80px rgba(0,0,0,0.4)', animation: 'rptSlideUp 0.25s ease' }}>
+
             {/* Modal header */}
-            <div style={{ padding: '20px 24px', borderBottom: `1px solid ${c.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'linear-gradient(135deg,rgba(245,158,11,0.07),transparent)', flexShrink: 0 }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: c.text }}>{selectedPartyName}</h3>
-                <p style={{ margin: '2px 0 0', fontSize: '13px', color: c.textLight }}>Party transaction history & balance summary</p>
+            <div style={{ padding: '18px 24px', borderBottom: `1px solid ${c.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'linear-gradient(135deg,rgba(245,158,11,0.07),transparent)', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'linear-gradient(135deg,#F59E0B,#D97706)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  {selectedPartyName.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '700', color: c.text }}>{selectedPartyName}</h3>
+                  <p style={{ margin: '2px 0 0', fontSize: '12px', color: c.textLight }}>
+                    {detailsLoading ? 'Loading transactions…' : details ? `${details.length} total transactions` : 'Party transaction history'}
+                  </p>
+                </div>
               </div>
-              <button onClick={closeDetails}
-                style={{ width: '36px', height: '36px', borderRadius: '50%', border: 'none', background: `${c.border}60`, color: c.textLight, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 0.2s' }}
-                onMouseEnter={e => e.currentTarget.style.background = `${c.error}20`}
-                onMouseLeave={e => e.currentTarget.style.background = `${c.border}60`}
-              ><XIcon /></button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                {/* Download button */}
+                {details && details.length > 0 && (
+                  <button
+                    onClick={() => downloadPDF(selectedParty, selectedPartyName, visibleDetails, RANGE_OPTIONS.find(r => r.key === txRange)?.label ?? txRange)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px', background: 'linear-gradient(135deg,#10B981,#059669)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: '700', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 3px 10px #10B98130' }}
+                    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 16px #10B98140' }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 3px 10px #10B98130' }}
+                    title={`Download ${RANGE_OPTIONS.find(r => r.key === txRange)?.label} transactions as PDF`}
+                  >
+                    <DownloadIcon /> Download PDF
+                  </button>
+                )}
+                <button onClick={closeDetails}
+                  style={{ width: '34px', height: '34px', borderRadius: '50%', border: 'none', background: `${c.border}60`, color: c.textLight, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 0.2s' }}
+                  onMouseEnter={e => e.currentTarget.style.background = `${c.error}20`}
+                  onMouseLeave={e => e.currentTarget.style.background = `${c.border}60`}
+                ><XIcon /></button>
+              </div>
             </div>
 
             {/* Modal body */}
@@ -397,14 +590,12 @@ export default function Report() {
                 </div>
               ) : details ? (() => {
                   const partyInfo = details[0]?.partyId
-                  const totalCredit = details.filter(t => t.type === 'credit').reduce((s, t) => s + t.amount, 0)
-                  const totalDebit  = details.filter(t => t.type === 'debit').reduce((s, t) => s + t.amount, 0)
-                  const netBal = selectedParty?.currentBalance ?? (totalCredit - totalDebit)
+                  const netBal    = selectedParty?.currentBalance ?? 0
                   return (
                     <>
-                      {/* Party info */}
-                      <div style={{ padding: '18px 24px', borderBottom: `1px solid ${c.border}` }}>
-                        <p style={{ margin: '0 0 12px', fontSize: '11px', fontWeight: '700', color: '#F59E0B', letterSpacing: '1px', textTransform: 'uppercase' }}>Party Information</p>
+                      {/* ── Party info ── */}
+                      <div style={{ padding: '16px 24px', borderBottom: `1px solid ${c.border}` }}>
+                        <p style={{ margin: '0 0 12px', fontSize: '10px', fontWeight: '700', color: '#F59E0B', letterSpacing: '1px', textTransform: 'uppercase' }}>Party Information</p>
                         <div className="rpt-info-grid">
                           {[
                             { label: 'Name',   value: partyInfo?.name   || selectedPartyName },
@@ -419,28 +610,43 @@ export default function Report() {
                         </div>
                       </div>
 
-                      {/* Financial summary */}
-                      <div style={{ padding: '18px 24px', borderBottom: `1px solid ${c.border}`, display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                      {/* ── Financial summary ── */}
+                      <div style={{ padding: '16px 24px', borderBottom: `1px solid ${c.border}`, display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                         {[
-                          { label: 'Pending To Collect', value: formatCurrency(selectedParty?.pendingToCollect ?? totalCredit), color: '#10B981' },
-                          { label: 'Pending To Pay',     value: formatCurrency(selectedParty?.pendingToPay     ?? totalDebit),  color: '#EF4444' },
+                          { label: 'Pending To Collect', value: formatCurrency(selectedParty?.pendingToCollect ?? 0), color: '#10B981' },
+                          { label: 'Pending To Pay',     value: formatCurrency(selectedParty?.pendingToPay     ?? 0), color: '#EF4444' },
                           { label: 'Current Balance',    value: `${netBal >= 0 ? '' : '- '}${formatCurrency(Math.abs(netBal))}`, color: '#F59E0B' },
                         ].map(card => (
                           <div key={card.label} style={{ flex: 1, minWidth: '130px', background: `${card.color}08`, border: `1px solid ${card.color}20`, borderRadius: '10px', padding: '14px 16px' }}>
-                            <p style={{ margin: '0 0 4px', fontSize: '11px', fontWeight: '600', color: card.color, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{card.label}</p>
+                            <p style={{ margin: '0 0 4px', fontSize: '10px', fontWeight: '600', color: card.color, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{card.label}</p>
                             <p style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: card.color }}>{card.value}</p>
                           </div>
                         ))}
                       </div>
 
-                      {/* Transaction list */}
+                      {/* ── Transaction list ── */}
                       <div>
-                        <div style={{ padding: '14px 24px 10px', borderBottom: `1px solid ${c.border}` }}>
-                          <p style={{ margin: 0, fontSize: '13px', fontWeight: '700', color: c.text }}>
-                            Transaction History
-                            <span style={{ fontSize: '11px', fontWeight: '500', color: c.textLight, marginLeft: '8px' }}>({details.length} records)</span>
-                          </p>
+                        {/* Transaction toolbar: range filter + count */}
+                        <div style={{ padding: '12px 24px', borderBottom: `1px solid ${c.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', background: `${c.primary}02` }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <CalendarIcon />
+                            <span style={{ fontSize: '12px', fontWeight: '600', color: c.textLight }}>Show:</span>
+                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                              {RANGE_OPTIONS.map(({ key, label }) => (
+                                <button key={key} onClick={() => setTxRange(key)} style={rangePillStyle(txRange === key)}>
+                                  {label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <span style={{ fontSize: '12px', color: c.textLight, whiteSpace: 'nowrap' }}>
+                            <strong style={{ color: c.text }}>{visibleDetails.length}</strong>
+                            {txRange !== 'all' && <span> of <strong style={{ color: c.text }}>{details.length}</strong></span>}
+                            {' '}transactions
+                          </span>
                         </div>
+
+                        {/* Table */}
                         <div style={{ overflowX: 'auto' }}>
                           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                             <thead>
@@ -451,11 +657,11 @@ export default function Report() {
                               </tr>
                             </thead>
                             <tbody>
-                              {details.length === 0 ? (
+                              {visibleDetails.length === 0 ? (
                                 <tr><td colSpan={7} style={{ padding: '32px 24px', textAlign: 'center', color: c.textLight, fontSize: '13px' }}>
-                                  No transactions found for this party
+                                  No transactions found for this period
                                 </td></tr>
-                              ) : details.map((tx, i) => {
+                              ) : visibleDetails.map((tx, i) => {
                                 const sc = txStatusConfig[tx.status.toUpperCase()] || { label: tx.status, bg: `${c.border}60`, color: c.textLight }
                                 return (
                                   <tr key={tx._id}
@@ -501,15 +707,19 @@ export default function Report() {
             </div>
 
             {/* Modal footer */}
-            <div style={{ padding: '14px 24px', borderTop: `1px solid ${c.border}`, display: 'flex', justifyContent: 'flex-end', background: c.background, flexShrink: 0 }}>
+            <div style={{ padding: '12px 24px', borderTop: `1px solid ${c.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: c.background, flexShrink: 0 }}>
+              <span style={{ fontSize: '12px', color: c.textLight }}>
+                {details && !detailsLoading && `${visibleDetails.length} transactions shown`}
+              </span>
               <button onClick={closeDetails}
-                style={{ padding: '9px 22px', borderRadius: '8px', border: `1.5px solid ${c.border}`, background: 'transparent', color: c.text, cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}>
+                style={{ padding: '8px 22px', borderRadius: '8px', border: `1.5px solid ${c.border}`, background: 'transparent', color: c.text, cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}>
                 Close
               </button>
             </div>
           </div>
         </div>
       )}
+
 
       <style>{`
         @keyframes rptPulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
@@ -518,13 +728,13 @@ export default function Report() {
         @keyframes rptSpin { to{transform:rotate(360deg)} }
 
         .rpt-summary-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
-        .rpt-modal { width:100%; max-width:820px; max-height:90vh; border-radius:16px; }
+        .rpt-modal { width:100%; max-width:860px; max-height:92vh; border-radius:16px; }
         .rpt-info-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
 
         @media(max-width:1024px) { .rpt-summary-grid{grid-template-columns:repeat(2,1fr);} }
         @media(max-width:768px) {
           .rpt-summary-grid{grid-template-columns:repeat(2,1fr);}
-          .rpt-modal{max-width:96vw;max-height:94vh;border-radius:14px;}
+          .rpt-modal{max-width:96vw;max-height:96vh;border-radius:14px;}
           .rpt-info-grid{grid-template-columns:repeat(2,1fr);}
         }
         @media(max-width:480px) {
