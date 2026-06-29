@@ -4,34 +4,53 @@ import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
+import PartyPage from './pages/Party'
+import ReportPage from './pages/Report'
+import TransactionPage from './pages/Transaction'
+import LenaDenaPage from './pages/LenaDena'
 import MainLayout from './layouts/MainLayout'
 import { ThemeProvider } from './contexts/ThemeContext'
-import { getCookie } from './utils/storage.util'
+import { LoaderProvider } from './contexts/LoaderContext'
+import Loader from './utils/Loader'
+import LedgerReport from './pages/LedgerReport'
 
 const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const token = getCookie('token')
+  const token = sessionStorage.getItem('token')
   if (!token) return <Navigate to="/login" replace />
   return <>{children}</>
 }
 
+const PrivateLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <PrivateRoute>
+    <MainLayout>{children}</MainLayout>
+  </PrivateRoute>
+)
+
 export default function App() {
   return (
-    <ThemeProvider>
-      <ToastContainer />
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route
-          path="/dashboard"
-          element={
-            <PrivateRoute>
-              <MainLayout>
-                <Dashboard />
-              </MainLayout>
-            </PrivateRoute>
-          }
+    <LoaderProvider>
+      <ThemeProvider>
+        <Loader />
+        <ToastContainer
+          position="top-right"
+          autoClose={3000}
+          hideProgressBar={false}
+          newestOnTop
+          closeOnClick
+          pauseOnHover
+          draggable
         />
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
-    </ThemeProvider>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/dashboard" element={<PrivateLayout><Dashboard /></PrivateLayout>} />
+          <Route path="/master/party" element={<PrivateLayout><PartyPage /></PrivateLayout>} />
+          <Route path="/transaction/add" element={<PrivateLayout><TransactionPage /></PrivateLayout>} />
+          <Route path="/report/dues" element={<PrivateLayout><ReportPage /></PrivateLayout>} />
+          <Route path="/report/ledger" element={<PrivateLayout><LedgerReport /></PrivateLayout>} />
+          <Route path="/lena-dena" element={<PrivateLayout><LenaDenaPage /></PrivateLayout>} />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </ThemeProvider>
+    </LoaderProvider>
   )
 }
