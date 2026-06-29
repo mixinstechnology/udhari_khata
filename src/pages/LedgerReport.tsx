@@ -5,7 +5,7 @@ import { useTheme } from '../contexts/ThemeContext'
 import {
   getPartyWiseBalance,
   getPartyBalance,
-  getPartyTransactions,
+  getPartyLedger,
 } from '../services/report.service'
 import {
   PartyWiseBalance,
@@ -93,7 +93,6 @@ const getStoredUser = (): { _id: string; name: string; company: string } => {
   try { return JSON.parse(localStorage.getItem('user') || '{}') }
   catch { return { _id: '', name: 'User', company: '' } }
 }
-
 
 const getMonthStart = () => {
   const n = new Date()
@@ -187,9 +186,9 @@ const downloadPDF = (
   </div>
   <div class="section-title">Financial Summary</div>
   <div class="fin-grid">
-   
-    <div class="fin-card blue"> <div class="label">Payment Received</div><div class="value">${formatCurrency(bal?.totalPaymentReceived ?? 0)}</div></div>
-    <div class="fin-card purple"><div class="label">Payment Paid</div><div class="value">${formatCurrency(bal?.totalPaymentPaid ?? 0)}</div></div>
+    <div class="fin-card green"><div class="label">Total Lena</div><div class="value">${formatCurrency(bal?.totalLena ?? 0)}</div></div>
+    <div class="fin-card red">  <div class="label">Total Dena</div><div class="value">${formatCurrency(bal?.totalDena ?? 0)}</div></div>
+    
     <div class="fin-card gold"> <div class="label">Current Balance</div><div class="value">${balance} </div></div>
   </div>
   <div class="section-title">Transaction History</div>
@@ -208,7 +207,7 @@ const downloadPDF = (
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function Report() {
+export default function LedgerReport() {
   const { currentTheme } = useTheme()
   const c = currentTheme.colors
   const user = getStoredUser()
@@ -258,7 +257,7 @@ export default function Report() {
     try {
       const [balRes, txRes] = await Promise.all([
         getPartyBalance({ partyId, createdBy: user._id }),
-        getPartyTransactions({ partyId, createdBy: user._id, fromDate: from, toDate: to }),
+        getPartyLedger({ partyId, createdBy: user._id, fromDate: from, toDate: to }),
       ])
       if (balRes.success) setBalanceData(balRes.data)
       else { setModalError(balRes.message || 'Failed to load balance'); return }
@@ -283,9 +282,6 @@ export default function Report() {
   const applyDateFilter = () => {
     if (selectedId) loadDetail(selectedId, fromDate, toDate)
   }
-
-const totalPaymentReceived =txData?.filter((i)=>i.type=='credit').reduce((acc,i)=>i.amount + acc,0)
-const totalPaymentPay =txData?.filter((i)=>i.type=='debit').reduce((acc,i)=>i.amount + acc,0)
 
   // ── Derived ──
   const filtered = parties
@@ -335,8 +331,8 @@ const totalPaymentPay =txData?.filter((i)=>i.type=='debit').reduce((acc,i)=>i.am
             <FileTextIcon />
           </div>
           <div>
-            <h1 style={{ margin: 0, fontSize: '22px', fontWeight: '800', color: c.text }}>Party Details</h1>
-            <p style={{ margin: '2px 0 0', fontSize: '13px', color: c.textLight }}>Party-wise balance and transaction history</p>
+            <h1 style={{ margin: 0, fontSize: '22px', fontWeight: '800', color: c.text }}>Party Ledger Details</h1>
+            <p style={{ margin: '2px 0 0', fontSize: '13px', color: c.textLight }}>Party-wise balance and Ledger history</p>
           </div>
         </div>
         <button onClick={() => fetchParties(1)}
@@ -540,10 +536,10 @@ const totalPaymentPay =txData?.filter((i)=>i.type=='debit').reduce((acc,i)=>i.am
                     <p style={{ margin: '0 0 12px', fontSize: '10px', fontWeight: '700', color: '#F59E0B', letterSpacing: '1px', textTransform: 'uppercase' }}>Financial Summary</p>
                     <div className="rpt-fin-grid">
                       {[
-                        // { label: 'Total Lena',       value: formatCurrency(balanceData.totalLena),             color: '#10B981' },
-                        // { label: 'Total Dena',        value: formatCurrency(balanceData.totalDena),             color: '#EF4444' },
-                        { label: 'Payment Received',  value: formatCurrency(totalPaymentReceived),  color: '#3B82F6' },
-                        { label: 'Payment Paid',      value: formatCurrency(totalPaymentPay),      color: '#8B5CF6' },
+                        { label: 'Total Lena',       value: formatCurrency(balanceData.totalLena),             color: '#10B981' },
+                        { label: 'Total Dena',        value: formatCurrency(balanceData.totalDena),             color: '#EF4444' },
+                        // { label: 'Payment Received',  value: formatCurrency(balanceData.totalPaymentReceived),  color: '#3B82F6' },
+                        // { label: 'Payment Paid',      value: formatCurrency(balanceData.totalPaymentPaid),      color: '#8B5CF6' },
                         { label: 'Current Balance',   value: `${formatCurrency(Math.abs(balanceData.currentBalance))} `, color: '#F59E0B' },
                       ].map(card => (
                         <div key={card.label} style={{ background: `${card.color}08`, border: `1px solid ${card.color}20`, borderRadius: '10px', padding: '12px 14px' }}>

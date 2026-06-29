@@ -311,6 +311,22 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           )}
         </div>
 
+        {/* Lena-Dena */}
+        <Link to="/lena-dena" style={menuItemStyle(isActive('/lena-dena'))}
+          onMouseEnter={e => { if (!isActive('/lena-dena')) e.currentTarget.style.background = 'rgba(255,255,255,0.1)' }}
+          onMouseLeave={e => { if (!isActive('/lena-dena')) e.currentTarget.style.background = 'transparent' }}
+        >
+          <span style={{ flexShrink: 0, display: 'flex' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+            </svg>
+          </span>
+          {!showCollapsed && <span>Lena-Dena</span>}
+          {showCollapsed && isActive('/lena-dena') && (
+            <div style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)', width: '3px', height: '24px', background: 'white', borderRadius: '0 3px 3px 0' }} />
+          )}
+        </Link>
+
         {/* Report */}
         <div>
           <div
@@ -336,7 +352,18 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 onMouseLeave={e => { if (!isActive('/report/dues')) e.currentTarget.style.background = 'transparent' }}
               >
                 <FileTextIcon />
-                Party Details
+                Party Transaction Details
+              </Link>
+            </div>
+          )}
+          {!showCollapsed && (
+            <div style={{ maxHeight: openReport ? '120px' : '0', overflow: 'hidden', transition: 'max-height 0.3s ease' }}>
+              <Link to="/report/ledger" style={subItemStyle(isActive('/report/ledger'))}
+                onMouseEnter={e => { if (!isActive('/report/ledger')) e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
+                onMouseLeave={e => { if (!isActive('/report/ledger')) e.currentTarget.style.background = 'transparent' }}
+              >
+                <FileTextIcon />
+                Party Ledger Details
               </Link>
             </div>
           )}

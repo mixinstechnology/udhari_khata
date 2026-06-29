@@ -7,10 +7,12 @@ import Dashboard from './pages/Dashboard'
 import PartyPage from './pages/Party'
 import ReportPage from './pages/Report'
 import TransactionPage from './pages/Transaction'
+import LenaDenaPage from './pages/LenaDena'
 import MainLayout from './layouts/MainLayout'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { LoaderProvider } from './contexts/LoaderContext'
 import Loader from './utils/Loader'
+import LedgerReport from './pages/LedgerReport'
 
 const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const token = sessionStorage.getItem('token')
@@ -44,6 +46,8 @@ export default function App() {
           <Route path="/master/party" element={<PrivateLayout><PartyPage /></PrivateLayout>} />
           <Route path="/transaction/add" element={<PrivateLayout><TransactionPage /></PrivateLayout>} />
           <Route path="/report/dues" element={<PrivateLayout><ReportPage /></PrivateLayout>} />
+          <Route path="/report/ledger" element={<PrivateLayout><LedgerReport /></PrivateLayout>} />
+          <Route path="/lena-dena" element={<PrivateLayout><LenaDenaPage /></PrivateLayout>} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </ThemeProvider>

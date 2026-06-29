@@ -10,8 +10,8 @@ import type {
 export const createTransaction = (payload: TransactionPayload): Promise<TransactionMutationResponse> =>
   httpService.post<TransactionMutationResponse>('api/transaction', { data: payload, token: true })
 
-export const getTransactionList = (createdBy: string): Promise<TransactionListResponse> =>
-  httpService.get<TransactionListResponse>('api/transaction', { params: { createdBy }, token: true })
+export const getTransactionList = (createdBy: string, params?: { limit?: number; page?: number }): Promise<TransactionListResponse> =>
+  httpService.get<TransactionListResponse>('api/transaction', { params: { createdBy, ...params }, token: true })
 
 export const approveTransaction = (id: string, payload: ApprovePayload): Promise<TransactionMutationResponse> =>
   httpService.put<TransactionMutationResponse>(`api/transaction/${id}/approve`, { data: payload, token: true })
