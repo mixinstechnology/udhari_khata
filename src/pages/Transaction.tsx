@@ -139,6 +139,10 @@ export default function TransactionPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'PENDING' | 'APPROVED' | 'REJECTED'>('all')
   const [typeFilter, setTypeFilter] = useState<'all' | 'credit' | 'debit'>('all')
 
+  // ── Pagination ──
+  const TXN_PAGE_SIZE = 10
+  const [txPage, setTxPage] = useState(1)
+
   // ── Approve / Reject state ──
   const [approvingId, setApprovingId] = useState<string | null>(null)
   const [rejectModal, setRejectModal] = useState<{ tx: Transaction } | null>(null)
@@ -150,7 +154,7 @@ export default function TransactionPage() {
     if (!user._id) return
     setLoading(true)
     try {
-      const res = await getTransactionList(user._id)
+      const res = await getTransactionList(user._id, { limit: 10000, page: 1 })
       if (res.success) setTransactions(Array.isArray(res.data) ? res.data : [])
     } catch { /* global loader handles error display */ }
     finally { setLoading(false) }
@@ -252,6 +256,9 @@ export default function TransactionPage() {
     }
   }
 
+  // Reset to page 1 when filters change
+  useEffect(() => { setTxPage(1) }, [statusFilter, typeFilter])
+
   // ── Derived ──
 
   const filtered = transactions.filter(t => {
@@ -259,6 +266,9 @@ export default function TransactionPage() {
     if (typeFilter !== 'all' && t.type !== typeFilter) return false
     return true
   })
+
+  const txTotalPages = Math.max(1, Math.ceil(filtered.length / TXN_PAGE_SIZE))
+  const paginated = filtered.slice((txPage - 1) * TXN_PAGE_SIZE, txPage * TXN_PAGE_SIZE)
 
   const totalCredit = transactions.filter(t => t.type === 'credit').reduce((s, t) => s + t.amount, 0)
   const totalDebit  = transactions.filter(t => t.type === 'debit').reduce((s, t) => s + t.amount, 0)
@@ -366,7 +376,7 @@ export default function TransactionPage() {
       </div>
 
       {/* ── Summary Cards ── */}
-      <div className="txn-summary-grid">
+      {/* <div className="txn-summary-grid">
         {summaryCards.map((card, i) => {
           const isActiveFilter = card.filterKey && statusFilter === card.filterKey
           return (
@@ -394,7 +404,7 @@ export default function TransactionPage() {
             </div>
           )
         })}
-      </div>
+      </div> */}
 
       {/* ── Transaction Table ── */}
       <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: '14px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
@@ -447,7 +457,13 @@ export default function TransactionPage() {
           <p style={{ margin: 0, fontSize: '12px', color: c.textLight }}>
             {loading ? 'Loading…' : (
               <>
-                Showing <strong style={{ color: c.text }}>{filtered.length}</strong> of <strong style={{ color: c.text }}>{transactions.length}</strong> transactions
+                {filtered.length === 0 ? (
+                  <>No transactions match</>
+                ) : (
+                  <>
+                    Showing <strong style={{ color: c.text }}>{(txPage - 1) * TXN_PAGE_SIZE + 1}–{Math.min(txPage * TXN_PAGE_SIZE, filtered.length)}</strong> of <strong style={{ color: c.text }}>{filtered.length}</strong> transactions
+                  </>
+                )}
                 {(statusFilter !== 'all' || typeFilter !== 'all') && (
                   <button onClick={() => { setStatusFilter('all'); setTypeFilter('all') }}
                     style={{ marginLeft: '10px', padding: '1px 8px', borderRadius: '4px', border: `1px solid ${c.border}`, background: 'transparent', color: c.textLight, fontSize: '11px', cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -498,14 +514,15 @@ export default function TransactionPage() {
                       </div>
                     </td></tr>
                   )
-                : filtered.map((tx, idx) => {
+                : paginated.map((tx, idx) => {
                     const sc = statusConfig[tx.status] || statusConfig.PENDING
+                    const rowNum = (txPage - 1) * TXN_PAGE_SIZE + idx + 1
                     return (
                       <tr key={tx._id}
                         onMouseEnter={e => e.currentTarget.style.background = `${c.primary}06`}
                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                       >
-                        <td style={{ padding: '12px 16px', borderBottom: `1px solid ${c.border}`, color: c.textLight, fontWeight: '500' }}>{idx + 1}</td>
+                        <td style={{ padding: '12px 16px', borderBottom: `1px solid ${c.border}`, color: c.textLight, fontWeight: '500' }}>{rowNum}</td>
                         <td style={{ padding: '12px 16px', borderBottom: `1px solid ${c.border}`, color: c.text, fontWeight: '600' }}>
                           {getPartyName(tx)}
                         </td>
@@ -578,6 +595,38 @@ export default function TransactionPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {!loading && filtered.length > 0 && (
+          <div style={{ padding: '12px 20px', borderTop: `1px solid ${c.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+            <span style={{ fontSize: '12px', color: c.textLight }}>
+              Page <strong style={{ color: c.text }}>{txPage}</strong> of <strong style={{ color: c.text }}>{txTotalPages}</strong> · {filtered.length} transactions
+            </span>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button disabled={txPage <= 1} onClick={() => setTxPage(p => p - 1)}
+                style={{ padding: '6px 14px', border: `1.5px solid ${c.border}`, borderRadius: '7px', background: c.background, color: c.text, fontSize: '12px', fontWeight: '600', cursor: txPage <= 1 ? 'not-allowed' : 'pointer', opacity: txPage <= 1 ? 0.4 : 1, fontFamily: 'inherit' }}>
+                ← Prev
+              </button>
+              {Array.from({ length: Math.min(txTotalPages, 7) }, (_, i) => {
+                let pg: number
+                if (txTotalPages <= 7) pg = i + 1
+                else if (txPage <= 4) pg = i + 1
+                else if (txPage >= txTotalPages - 3) pg = txTotalPages - 6 + i
+                else pg = txPage - 3 + i
+                return (
+                  <button key={pg} onClick={() => setTxPage(pg)}
+                    style={{ minWidth: '34px', padding: '6px 8px', border: `1.5px solid ${txPage === pg ? c.primary : c.border}`, borderRadius: '7px', background: txPage === pg ? c.primary : c.background, color: txPage === pg ? 'white' : c.text, fontSize: '12px', fontWeight: txPage === pg ? '700' : '500', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    {pg}
+                  </button>
+                )
+              })}
+              <button disabled={txPage >= txTotalPages} onClick={() => setTxPage(p => p + 1)}
+                style={{ padding: '6px 14px', border: `1.5px solid ${c.border}`, borderRadius: '7px', background: c.background, color: c.text, fontSize: '12px', fontWeight: '600', cursor: txPage >= txTotalPages ? 'not-allowed' : 'pointer', opacity: txPage >= txTotalPages ? 0.4 : 1, fontFamily: 'inherit' }}>
+                Next →
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Add Transaction Modal ── */}

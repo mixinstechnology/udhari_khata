@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom'
 import { useTheme } from '../contexts/ThemeContext'
 import { toast } from 'react-toastify'
 import {
-  getAdminSummary,
   getPartyList,
   addParty,
   updateParty,
@@ -15,9 +14,11 @@ import {
   approveTransaction,
   rejectTransaction,
 } from '../services/transaction.service'
-import { getPendingParties } from '../services/report.service'
+import {
+  getAdminSummaryRange,
+  getPartyWiseBalance,
+} from '../services/report.service'
 import type {
-  AdminSummary,
   Party,
   PartyPayload,
   UpdatePartyPayload,
@@ -29,7 +30,7 @@ import type {
   PaymentMode,
   TransactionStatus,
 } from '../types/transaction.types'
-import type { PendingParty } from '../types/report.types'
+import type { AdminSummaryRange, PartyWiseBalance } from '../types/report.types'
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -156,6 +157,11 @@ const getStoredUser = (): { _id: string; name: string; company: string } => {
 
 const todayISO = () => new Date().toISOString().split('T')[0]
 
+const getMonthStart = () => {
+  const n = new Date()
+  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-01`
+}
+
 // Convert "2026-05-23" (date input) → "23-may-2026" (API format)
 const formatTxDate = (iso: string): string => {
   const [y, m, d] = iso.split('-').map(Number)
@@ -210,8 +216,12 @@ export default function Dashboard() {
   const user = getStoredUser()
   const navigate = useNavigate()
 
+  // ── Summary date range ──
+  const [summaryFromDate] = useState(getMonthStart())
+  const [summaryToDate]   = useState(todayISO())
+
   // ── Party state ──
-  const [summary, setSummary] = useState<AdminSummary | null>(null)
+  const [summary, setSummary] = useState<AdminSummaryRange | null>(null)
   const [summaryLoading, setSummaryLoading] = useState(true)
   const [parties, setParties] = useState<Party[]>([])
   const [partyTotal, setPartyTotal] = useState(0)
@@ -226,9 +236,9 @@ export default function Dashboard() {
   const [partySubmitting, setPartySubmitting] = useState(false)
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // ── Pending parties state ──
-  const [pendingParties, setPendingParties] = useState<PendingParty[]>([])
-  const [pendingLoading, setPendingLoading] = useState(true)
+  // ── Party balances state ──
+  const [partyBalances, setPartyBalances] = useState<PartyWiseBalance[]>([])
+  const [balancesLoading, setBalancesLoading] = useState(true)
 
   // ── Transaction state ──
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -253,11 +263,11 @@ export default function Dashboard() {
     if (!user._id) return
     setSummaryLoading(true)
     try {
-      const res = await getAdminSummary(user._id)
+      const res = await getAdminSummaryRange({ createdBy: user._id, fromDate: summaryFromDate, toDate: summaryToDate })
       if (res.success) setSummary(res.data)
     } catch { /* handled */ }
     finally { setSummaryLoading(false) }
-  }, [user._id])
+  }, [user._id, summaryFromDate, summaryToDate])
 
   const fetchParties = useCallback(async (page: number, q: string) => {
     if (!user._id) return
@@ -283,27 +293,26 @@ export default function Dashboard() {
     finally { setTxLoading(false) }
   }, [user._id])
 
-  const fetchPendingParties = useCallback(async () => {
-    if (!user._id) return
-    setPendingLoading(true)
+  const fetchPartyBalances = useCallback(async () => {
+    setBalancesLoading(true)
     try {
-      const res = await getPendingParties(user._id)
-      if (res.success) setPendingParties(Array.isArray(res.data) ? res.data : [])
+      const res = await getPartyWiseBalance({ page: 1, limit: 5 })
+      if (res.success) setPartyBalances(Array.isArray(res.data) ? res.data : [])
     } catch { /* handled */ }
-    finally { setPendingLoading(false) }
-  }, [user._id])
+    finally { setBalancesLoading(false) }
+  }, [])
 
   const refreshAll = useCallback(() => {
     fetchSummary()
     fetchParties(currentPage, search)
     fetchTransactions()
-    fetchPendingParties()
-  }, [fetchSummary, fetchParties, fetchTransactions, fetchPendingParties, currentPage, search])
+    fetchPartyBalances()
+  }, [fetchSummary, fetchParties, fetchTransactions, fetchPartyBalances, currentPage, search])
 
   useEffect(() => { fetchSummary() }, [fetchSummary])
   useEffect(() => { fetchParties(currentPage, search) }, [fetchParties, currentPage])
   useEffect(() => { fetchTransactions() }, [fetchTransactions])
-  useEffect(() => { fetchPendingParties() }, [fetchPendingParties])
+  useEffect(() => { fetchPartyBalances() }, [fetchPartyBalances])
   useEffect(() => { setTxPage(1) }, [txTypeFilter, txStatusFilter])
 
   // ── Party handlers ──
@@ -472,12 +481,15 @@ export default function Dashboard() {
   const txTotalPages = Math.ceil(filteredTx.length / TX_LIMIT)
   const paginatedTx = filteredTx.slice((txPage - 1) * TX_LIMIT, txPage * TX_LIMIT)
 
+  const plColor = summary ? (summary.type === 'profit' ? '#10B981' : summary.type === 'loss' ? '#EF4444' : '#F59E0B') : '#F59E0B'
+  const plGrad  = summary ? (summary.type === 'profit' ? 'linear-gradient(135deg,#10B981,#059669)' : summary.type === 'loss' ? 'linear-gradient(135deg,#EF4444,#DC2626)' : 'linear-gradient(135deg,#F59E0B,#D97706)') : 'linear-gradient(135deg,#F59E0B,#D97706)'
+
   const statCards = summary ? [
-    { label: 'Total Credit', value: formatCurrency(summary.totalCredit), icon: <TrendingUpIcon />, color: '#10B981', grad: 'linear-gradient(135deg,#10B981,#059669)' },
-    { label: 'Total Debit', value: formatCurrency(summary.totalDebit), icon: <TrendingDownIcon />, color: '#EF4444', grad: 'linear-gradient(135deg,#EF4444,#DC2626)' },
-    { label: 'Pending to Collect', value: formatCurrency(summary.pendingToCollect), icon: <InboxIcon />, color: '#F59E0B', grad: 'linear-gradient(135deg,#F59E0B,#D97706)' },
-    { label: 'Pending to Pay', value: formatCurrency(summary.pendingToPay), icon: <SendIcon />, color: c.primary, grad: `linear-gradient(135deg,${c.primary},${c.secondary})` },
-    { label: 'Net Balance', value: formatCurrency(summary.netBalance), icon: <ScaleIcon />, color: c.accent, grad: `linear-gradient(135deg,${c.accent},${c.primary})` },
+    { label: 'Total Lena',    value: formatCurrency(summary.totalLena),    icon: <TrendingUpIcon />,   color: '#10B981', grad: 'linear-gradient(135deg,#10B981,#059669)' },
+    { label: 'Total Dena',    value: formatCurrency(summary.totalDena),    icon: <TrendingDownIcon />, color: '#EF4444', grad: 'linear-gradient(135deg,#EF4444,#DC2626)' },
+    { label: 'Net Receivable', value: formatCurrency(summary.netReceivable), icon: <InboxIcon />,       color: '#3B82F6', grad: 'linear-gradient(135deg,#3B82F6,#1D4ED8)' },
+    { label: 'Net Payable',   value: formatCurrency(summary.netPayable),   icon: <SendIcon />,         color: c.primary, grad: `linear-gradient(135deg,${c.primary},${c.secondary})` },
+    { label: summary.type === 'profit' ? 'Profit' : summary.type === 'loss' ? 'Loss' : 'Net P&L', value: formatCurrency(summary.profitOrLoss), icon: <ScaleIcon />, color: plColor, grad: plGrad },
   ] : []
 
   const quickActions = [
@@ -506,9 +518,9 @@ export default function Dashboard() {
   })
 
   const txStatusConfig: Record<string, { label: string; bg: string; color: string }> = {
-    pending:  { label: 'Pending',  bg: '#F59E0B18', color: '#F59E0B' },
-    approved: { label: 'Approved', bg: '#10B98118', color: '#10B981' },
-    rejected: { label: 'Rejected', bg: '#EF444418', color: '#EF4444' },
+    PENDING:  { label: 'Pending',  bg: '#F59E0B18', color: '#F59E0B' },
+    APPROVED: { label: 'Approved', bg: '#10B98118', color: '#10B981' },
+    REJECTED: { label: 'Rejected', bg: '#EF444418', color: '#EF4444' },
   }
 
   const partyStartItem = (currentPage - 1) * PARTY_LIMIT + 1
@@ -586,7 +598,7 @@ export default function Dashboard() {
       {/* ── Overview Insights ── */}
       <div className="db-insights-grid">
 
-        {/* Pending Parties Panel */}
+        {/* Party Balances Panel */}
         <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: '14px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
           <div style={{ padding: '16px 20px', borderBottom: `1px solid ${c.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -594,9 +606,9 @@ export default function Dashboard() {
                 <UsersIcon />
               </div>
               <div>
-                <h3 style={{ margin: 0, fontSize: '14px', fontWeight: '700', color: c.text }}>Pending Parties</h3>
+                <h3 style={{ margin: 0, fontSize: '14px', fontWeight: '700', color: c.text }}>Party Balances</h3>
                 <p style={{ margin: 0, fontSize: '11px', color: c.textLight }}>
-                  {pendingLoading ? 'Loading…' : `${pendingParties.length} parties with outstanding balance`}
+                  {balancesLoading ? 'Loading…' : `Top ${partyBalances.length} parties by balance`}
                 </p>
               </div>
             </div>
@@ -611,13 +623,13 @@ export default function Dashboard() {
 
           {/* Column headers */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: '8px', padding: '8px 16px', background: `${c.primary}04`, borderBottom: `1px solid ${c.border}` }}>
-            {['Party', 'To Collect', 'To Pay', 'Balance'].map(h => (
+            {['Party', 'Area', 'Balance', 'Type'].map(h => (
               <span key={h} style={{ fontSize: '10px', fontWeight: '700', color: c.textLight, textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: h === 'Party' ? 'left' : 'right' }}>{h}</span>
             ))}
           </div>
 
           <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
-            {pendingLoading
+            {balancesLoading
               ? Array.from({ length: 4 }).map((_, i) => (
                   <div key={i} style={{ padding: '12px 16px', borderBottom: `1px solid ${c.border}`, display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: '8px', alignItems: 'center' }}>
                     {Array.from({ length: 4 }).map((__, j) => (
@@ -625,57 +637,53 @@ export default function Dashboard() {
                     ))}
                   </div>
                 ))
-              : pendingParties.length === 0
+              : partyBalances.length === 0
               ? (
                   <div style={{ padding: '40px 20px', textAlign: 'center', color: c.textLight }}>
-                    <p style={{ margin: 0, fontSize: '13px', fontWeight: '600', color: c.text }}>All balances settled</p>
-                    <p style={{ margin: '4px 0 0', fontSize: '12px' }}>No pending dues found</p>
+                    <p style={{ margin: 0, fontSize: '13px', fontWeight: '600', color: c.text }}>No party balances</p>
+                    <p style={{ margin: '4px 0 0', fontSize: '12px' }}>Add transactions to see balance data</p>
                   </div>
                 )
-              : [...pendingParties]
-                  .sort((a, b) => Math.abs(b.currentBalance) - Math.abs(a.currentBalance))
-                  .slice(0, 6)
-                  .map(party => {
-                    const netColor = party.currentBalance > 0 ? '#10B981' : party.currentBalance < 0 ? '#EF4444' : c.textLight
-                    return (
-                      <div key={party.partyId}
-                        style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: '8px', padding: '10px 16px', borderBottom: `1px solid ${c.border}`, alignItems: 'center', transition: 'background 0.15s' }}
-                        onMouseEnter={e => e.currentTarget.style.background = `${c.primary}05`}
-                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                          <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'linear-gradient(135deg,#F59E0B,#D97706)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '700', flexShrink: 0 }}>
-                            {party.name.charAt(0).toUpperCase()}
-                          </div>
-                          <div style={{ minWidth: 0 }}>
-                            <p style={{ margin: 0, fontSize: '12px', fontWeight: '600', color: c.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{party.name}</p>
-                            <p style={{ margin: 0, fontSize: '10px', color: c.textLight }}>{party.mobile}</p>
-                          </div>
+              : partyBalances.map(party => {
+                  const balColor = party.currentBalance > 0 ? '#10B981' : party.currentBalance < 0 ? '#EF4444' : c.textLight
+                  const btLabel = party.balanceType === 'credit' ? 'CR' : party.balanceType === 'debit' ? 'DR' : 'NIL'
+                  const btBg    = party.balanceType === 'credit' ? '#10B98118' : party.balanceType === 'debit' ? '#EF444418' : `${c.border}60`
+                  const btColor = party.balanceType === 'credit' ? '#10B981' : party.balanceType === 'debit' ? '#EF4444' : c.textLight
+                  return (
+                    <div key={party._id}
+                      style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: '8px', padding: '10px 16px', borderBottom: `1px solid ${c.border}`, alignItems: 'center', transition: 'background 0.15s', cursor: 'pointer' }}
+                      onClick={() => navigate('/report/dues')}
+                      onMouseEnter={e => e.currentTarget.style.background = `${c.primary}05`}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                        <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'linear-gradient(135deg,#F59E0B,#D97706)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '700', flexShrink: 0 }}>
+                          {party.name.charAt(0).toUpperCase()}
                         </div>
-                        <span style={{ fontSize: '12px', fontWeight: '700', color: '#10B981', textAlign: 'right', whiteSpace: 'nowrap' }}>{formatCurrency(party.pendingToCollect)}</span>
-                        <span style={{ fontSize: '12px', fontWeight: '700', color: '#EF4444', textAlign: 'right', whiteSpace: 'nowrap' }}>{formatCurrency(party.pendingToPay)}</span>
-                        <span style={{ fontSize: '12px', fontWeight: '800', color: netColor, textAlign: 'right', whiteSpace: 'nowrap' }}>
-                          {party.currentBalance >= 0 ? '' : '- '}{formatCurrency(Math.abs(party.currentBalance))}
-                          <span style={{ fontSize: '9px', marginLeft: '3px', opacity: 0.7 }}>{party.currentBalance > 0 ? 'CR' : party.currentBalance < 0 ? 'DR' : ''}</span>
-                        </span>
+                        <div style={{ minWidth: 0 }}>
+                          <p style={{ margin: 0, fontSize: '12px', fontWeight: '600', color: c.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{party.name}</p>
+                          <p style={{ margin: 0, fontSize: '10px', color: c.textLight }}>{party.mobile}</p>
+                        </div>
                       </div>
-                    )
-                  })
+                      <span style={{ fontSize: '11px', color: c.textLight, textAlign: 'right', whiteSpace: 'nowrap' }}>{party.area || '—'}</span>
+                      <span style={{ fontSize: '12px', fontWeight: '800', color: balColor, textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        {formatCurrency(Math.abs(party.currentBalance))}
+                      </span>
+                      <span style={{ padding: '2px 7px', borderRadius: '10px', fontSize: '10px', fontWeight: '700', background: btBg, color: btColor, textAlign: 'right', whiteSpace: 'nowrap', justifySelf: 'end' }}>
+                        {btLabel}
+                      </span>
+                    </div>
+                  )
+                })
             }
           </div>
 
           {/* Summary footer */}
-          {!pendingLoading && pendingParties.length > 0 && (
-            <div style={{ padding: '10px 16px', background: `${c.primary}04`, borderTop: `1px solid ${c.border}`, display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: '8px', alignItems: 'center' }}>
-              <span style={{ fontSize: '11px', fontWeight: '700', color: c.textLight }}>TOTAL ({pendingParties.length})</span>
-              <span style={{ fontSize: '12px', fontWeight: '800', color: '#10B981', textAlign: 'right' }}>
-                {formatCurrency(pendingParties.reduce((s, p) => s + p.pendingToCollect, 0))}
-              </span>
-              <span style={{ fontSize: '12px', fontWeight: '800', color: '#EF4444', textAlign: 'right' }}>
-                {formatCurrency(pendingParties.reduce((s, p) => s + p.pendingToPay, 0))}
-              </span>
-              <span style={{ fontSize: '12px', fontWeight: '800', color: '#F59E0B', textAlign: 'right' }}>
-                {formatCurrency(Math.abs(pendingParties.reduce((s, p) => s + p.currentBalance, 0)))}
+          {!balancesLoading && partyBalances.length > 0 && (
+            <div style={{ padding: '10px 16px', background: `${c.primary}04`, borderTop: `1px solid ${c.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '11px', fontWeight: '700', color: c.textLight }}>TOP {partyBalances.length} OF TOTAL</span>
+              <span style={{ fontSize: '12px', fontWeight: '800', color: '#F59E0B' }}>
+                Net: {formatCurrency(Math.abs(partyBalances.reduce((s, p) => s + p.currentBalance, 0)))}
               </span>
             </div>
           )}
@@ -928,7 +936,7 @@ export default function Dashboard() {
             <div>
               <h2 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: c.text }}>Recent Transactions</h2>
               <p style={{ margin: 0, fontSize: '12px', color: c.textLight }}>
-                {transactions.length > 0 ? `${transactions.length} total · ${transactions.filter(t => t.status === 'pending').length} pending` : 'No transactions yet'}
+                {transactions.length > 0 ? `${transactions.length} total · ${transactions.filter(t => t.status === 'PENDING').length} pending` : 'No transactions yet'}
               </p>
             </div>
           </div>
@@ -952,7 +960,7 @@ export default function Dashboard() {
           <div style={{ width: '1px', height: '20px', background: c.border, margin: '0 8px' }}/>
           <span style={{ fontSize: '11px', fontWeight: '700', color: c.textLight, textTransform: 'uppercase', letterSpacing: '0.5px', marginRight: '4px' }}>Status:</span>
           {(['all', 'pending', 'approved', 'rejected'] as const).map(f => (
-            <button key={f} onClick={() => setTxStatusFilter(f)} style={filterPill(txStatusFilter === f)}>
+            <button key={f} onClick={() => setTxStatusFilter(f=='all'?f:f.toUpperCase())} style={f!=='all' ? filterPill(txStatusFilter === f.toUpperCase()):filterPill(txStatusFilter === f)}>
               {f.charAt(0).toUpperCase() + f.slice(1)}
             </button>
           ))}
@@ -963,7 +971,7 @@ export default function Dashboard() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
             <thead>
               <tr style={{ background: `${c.primary}06` }}>
-                {['#', 'Party', 'Amount', 'Type', 'Mode', 'Date', 'Status', 'Actions'].map(h => (
+                {['#', 'Party', 'Amount', 'Type', 'Mode', 'Date', 'Status'].map(h => (
                   <th key={h} style={{ padding: '11px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '700', color: c.textLight, letterSpacing: '0.5px', textTransform: 'uppercase', borderBottom: `1px solid ${c.border}`, whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -1031,15 +1039,16 @@ export default function Dashboard() {
                             <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '700', background: statusCfg.bg, color: statusCfg.color }}>
                               {statusCfg.label}
                             </span>
-                            {tx.status === 'rejected' && tx.rejectRemark && (
+                            {tx.status === 'REJECTED' && tx.rejectRemark && (
                               <p style={{ margin: '3px 0 0', fontSize: '11px', color: '#EF4444', opacity: 0.8 }} title={tx.rejectRemark}>
                                 {tx.rejectRemark.length > 20 ? tx.rejectRemark.slice(0, 20) + '…' : tx.rejectRemark}
                               </p>
                             )}
                           </div>
                         </td>
-                        <td style={{ padding: '12px 16px', borderBottom: `1px solid ${c.border}` }}>
-                          {tx.status === 'pending' ? (
+                        
+                        {/* <td style={{ padding: '12px 16px', borderBottom: `1px solid ${c.border}` }}>
+                          {tx.status === 'PENDING' ? (
                             <div style={{ display: 'flex', gap: '6px' }}>
                               <button onClick={() => handleApprove(tx._id)} disabled={isApproving}
                                 style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 10px', background: '#10B98112', color: '#10B981', border: '1px solid #10B98130', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: isApproving ? 'not-allowed' : 'pointer', transition: 'all 0.2s', opacity: isApproving ? 0.7 : 1 }}
@@ -1060,7 +1069,7 @@ export default function Dashboard() {
                           ) : (
                             <span style={{ fontSize: '12px', color: c.textLight, fontStyle: 'italic' }}>—</span>
                           )}
-                        </td>
+                        </td> */}
                       </tr>
                     )
                   })

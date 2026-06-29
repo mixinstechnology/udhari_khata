@@ -10,7 +10,7 @@ import type {
 
 export const getAdminSummary = (createdBy: string): Promise<AdminSummaryResponse> =>
   httpService.get<AdminSummaryResponse>('api/report/admin-summary', {
-    params: { createdBy, sort: 'asc' },
+    params: { createdBy,fromDate:'' ,toDate:'',  sort: 'asc' },
     token: true,
   })
 

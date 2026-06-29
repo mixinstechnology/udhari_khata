@@ -302,9 +302,9 @@ export default function Login() {
                 <label style={{ fontSize: '11px', fontWeight: '700', color: c.text, letterSpacing: '0.8px', textTransform: 'uppercase' }}>
                   Password
                 </label>
-                <span style={{ fontSize: '12px', color: c.primary, fontWeight: '500', cursor: 'pointer' }}>
+                {/* <span style={{ fontSize: '12px', color: c.primary, fontWeight: '500', cursor: 'pointer' }}>
                   Forgot password?
-                </span>
+                </span> */}
               </div>
               <div style={{
                 display: 'flex', alignItems: 'center',
@@ -400,7 +400,7 @@ export default function Login() {
           </div>
 
           {/* Security note */}
-          <div style={{
+          {/* <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
             marginTop: '28px', padding: '10px 16px',
             background: `${c.primary}08`,
@@ -411,11 +411,11 @@ export default function Login() {
             <p style={{ margin: 0, fontSize: '12px', color: c.textLight, fontWeight: '500' }}>
               Protected by 256-bit SSL encryption
             </p>
-          </div>
+          </div> */}
 
-          <p style={{ textAlign: 'center', margin: '16px 0 0', fontSize: '11px', color: c.textLight }}>
+          {/* <p style={{ textAlign: 'center', margin: '16px 0 0', fontSize: '11px', color: c.textLight }}>
             Udhari Khata &copy; 2024 &bull; All rights reserved
-          </p>
+          </p> */}
         </div>
       </div>
 
