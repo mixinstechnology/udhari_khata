@@ -1,4 +1,4 @@
-export type PaymentMode = 'CASH' | 'BANK' | 'CHEQUE'
+export type PaymentMode = 'CASH' | 'BANK' | 'CHEQUE'|'UPI'
 export type TransactionType = 'credit' | 'debit'
 export type TransactionStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
 

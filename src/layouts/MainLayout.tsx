@@ -156,7 +156,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     justifyContent: collapsed && !isMobile ? 'center' : 'flex-start',
     borderRadius: collapsed && !isMobile ? '0' : '10px',
     margin: collapsed && !isMobile ? '2px 0' : '2px 8px',
-    cursor: 'pointer', transition: 'all 0.2s',
+    // cursor: 'pointer', transition: 'all 0.2s',
     color: active ? 'white' : 'rgba(255,255,255,0.7)',
     background: active ? 'rgba(255,255,255,0.18)' : 'transparent',
     borderLeft: active && !(collapsed && !isMobile) ? '3px solid rgba(255,255,255,0.9)' : (collapsed && !isMobile) ? 'none' : '3px solid transparent',
@@ -168,7 +168,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   const subItemStyle = (active: boolean): React.CSSProperties => ({
     display: 'flex', alignItems: 'center', gap: '8px',
-    padding: '8px 16px 8px 44px',
+    padding: '8px 16px 8px 28px',
     margin: '1px 8px',
     borderRadius: '8px',
     cursor: 'pointer', transition: 'all 0.2s',
@@ -251,7 +251,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
         {/* Master */}
         <div>
-          <div
+          {/* <div
             onClick={() => !showCollapsed && setOpenMaster(s => !s)}
             style={{ ...menuItemStyle(location.pathname.startsWith('/master')), justifyContent: showCollapsed ? 'center' : 'space-between' }}
             onMouseEnter={e => { if (!location.pathname.startsWith('/master')) e.currentTarget.style.background = showCollapsed ? 'transparent' : 'rgba(255,255,255,0.1)' }}
@@ -266,9 +266,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 <ChevronDownIcon />
               </span>
             )}
-          </div>
-          {!showCollapsed && (
-            <div style={{ maxHeight: openMaster ? '120px' : '0', overflow: 'hidden', transition: 'max-height 0.3s ease' }}>
+          </div> */}
+          {/* {!showCollapsed && ( */}
+            {/* <div style={{ maxHeight: openMaster ? '120px' : '0', overflow: 'hidden', transition: 'max-height 0.3s ease' }}> */}
               <Link to="/master/party" style={subItemStyle(isActive('/master/party'))}
                 onMouseEnter={e => { if (!isActive('/master/party')) e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
                 onMouseLeave={e => { if (!isActive('/master/party')) e.currentTarget.style.background = 'transparent' }}
@@ -277,12 +277,12 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 Party
               </Link>
             </div>
-          )}
-        </div>
+          {/* )}
+        </div> */}
 
         {/* Transaction */}
         <div>
-          <div
+          {/* <div
             onClick={() => !showCollapsed && setOpenTransaction(s => !s)}
             style={{ ...menuItemStyle(location.pathname.startsWith('/transaction')), justifyContent: showCollapsed ? 'center' : 'space-between' }}
             onMouseEnter={e => { if (!location.pathname.startsWith('/transaction')) e.currentTarget.style.background = showCollapsed ? 'transparent' : 'rgba(255,255,255,0.1)' }}
@@ -297,9 +297,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 <ChevronDownIcon />
               </span>
             )}
-          </div>
-          {!showCollapsed && (
-            <div style={{ maxHeight: openTransaction ? '120px' : '0', overflow: 'hidden', transition: 'max-height 0.3s ease' }}>
+          </div> */}
+          {/* {!showCollapsed && (
+            <div style={{ maxHeight: openTransaction ? '120px' : '0', overflow: 'hidden', transition: 'max-height 0.3s ease' }}> */}
               <Link to="/transaction/add" style={subItemStyle(isActive('/transaction/add'))}
                 onMouseEnter={e => { if (!isActive('/transaction/add')) e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
                 onMouseLeave={e => { if (!isActive('/transaction/add')) e.currentTarget.style.background = 'transparent' }}
@@ -307,8 +307,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 <PlusCircleIcon />
                 Add Transaction
               </Link>
-            </div>
-          )}
+            {/* </div> */}
+          {/* )} */}
         </div>
 
         {/* Lena-Dena */}
@@ -332,21 +332,21 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           <div
             onClick={() => !showCollapsed && setOpenReport(s => !s)}
             style={{ ...menuItemStyle(location.pathname.startsWith('/report')), justifyContent: showCollapsed ? 'center' : 'space-between' }}
-            onMouseEnter={e => { if (!location.pathname.startsWith('/report')) e.currentTarget.style.background = showCollapsed ? 'transparent' : 'rgba(255,255,255,0.1)' }}
-            onMouseLeave={e => { if (!location.pathname.startsWith('/report')) e.currentTarget.style.background = 'transparent' }}
+            // onMouseEnter={e => { if (!location.pathname.startsWith('/report')) e.currentTarget.style.background = showCollapsed ? 'transparent' : 'rgba(255,255,255,0.1)' }}
+            // onMouseLeave={e => { if (!location.pathname.startsWith('/report')) e.currentTarget.style.background = 'transparent' }}
           >
-            <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '10px', color:'white' }}>
               <span style={{ flexShrink: 0, display: 'flex' }}><BarChartIcon /></span>
-              {!showCollapsed && <span>Report</span>}
+              {!showCollapsed && <span>Reports</span>}
             </span>
-            {!showCollapsed && (
+            {/* {!showCollapsed && (
               <span style={{ color: 'rgba(255,255,255,0.6)', transition: 'transform 0.2s', transform: openReport ? 'rotate(0deg)' : 'rotate(-90deg)', display: 'flex' }}>
                 <ChevronDownIcon />
               </span>
-            )}
+            )} */}
           </div>
-          {!showCollapsed && (
-            <div style={{ maxHeight: openReport ? '120px' : '0', overflow: 'hidden', transition: 'max-height 0.3s ease' }}>
+          {/* {!showCollapsed && (
+            <div style={{ maxHeight: openReport ? '120px' : '0', overflow: 'hidden', transition: 'max-height 0.3s ease' }}> */}
               <Link to="/report/dues" style={subItemStyle(isActive('/report/dues'))}
                 onMouseEnter={e => { if (!isActive('/report/dues')) e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
                 onMouseLeave={e => { if (!isActive('/report/dues')) e.currentTarget.style.background = 'transparent' }}
@@ -354,10 +354,10 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 <FileTextIcon />
                 Party Transaction Details
               </Link>
-            </div>
-          )}
-          {!showCollapsed && (
-            <div style={{ maxHeight: openReport ? '120px' : '0', overflow: 'hidden', transition: 'max-height 0.3s ease' }}>
+            {/* </div>
+          )} */}
+          {/* {!showCollapsed && (
+            <div style={{ maxHeight: openReport ? '120px' : '0', overflow: 'hidden', transition: 'max-height 0.3s ease' }}> */}
               <Link to="/report/ledger" style={subItemStyle(isActive('/report/ledger'))}
                 onMouseEnter={e => { if (!isActive('/report/ledger')) e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
                 onMouseLeave={e => { if (!isActive('/report/ledger')) e.currentTarget.style.background = 'transparent' }}
@@ -365,8 +365,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 <FileTextIcon />
                 Party Ledger Details
               </Link>
-            </div>
-          )}
+            {/* </div>
+          )} */}
         </div>
       </nav>
 

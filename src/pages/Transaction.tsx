@@ -331,7 +331,16 @@ export default function TransactionPage() {
 
   const labelStyle: CSSProperties = {
     display: 'block', fontSize: '12px', fontWeight: '600', color: c.textLight,
+    marginBottom: '5px', letterSpacing: '0.3px'
+  }
+  const labelStyleCr: CSSProperties = {
+    display: 'block', fontSize: '12px', fontWeight: '600', color: c.success,
     marginBottom: '5px', letterSpacing: '0.3px',
+  }
+  const labelStyleDr: CSSProperties = {
+    display: 'block', fontSize: '12px', fontWeight: '600', color: c.error,
+    marginBottom: '5px', letterSpacing: '0.3px',
+    
   }
 
   const segBtn = (active: boolean, color: string): CSSProperties => ({
@@ -655,7 +664,12 @@ export default function TransactionPage() {
 
               {/* Party */}
               <div style={{ marginBottom: '16px' }}>
+                <div style={{display:'flex', justifyContent:"space-between"}}>
                 <label style={labelStyle}>Party <span style={{ color: c.error }}>*</span></label>
+                { form?.partyId && <label  style={{ display: 'flex', fontSize: '12px', fontWeight: '600', color: c.textLight,
+                 marginBottom: '5px', letterSpacing: '0.3px'}}>Amount :<span style={parties?.filter((i)=>i?._id==form?.partyId)[0]?.currentBalance > 0?labelStyleDr:labelStyleCr}> ₹ {parties?.filter((i)=>i?._id==form?.partyId)[0]?.currentBalance > 0? parties?.filter((i)=>i?._id==form?.partyId)[0]?.currentBalance+'Dr' :-1*parties?.filter((i)=>i?._id==form?.partyId)[0]?.currentBalance +'Cr'}</span></label>}
+                
+                </div>
                 <select value={form.partyId} onChange={e => setField('partyId', e.target.value)}
                   style={{ ...inputStyle(!!errors.partyId), cursor: 'pointer' }}
                 >
@@ -700,6 +714,7 @@ export default function TransactionPage() {
                   <select value={form.paymentMode} onChange={e => setField('paymentMode', e.target.value as PaymentMode)}
                     style={{ ...inputStyle(), cursor: 'pointer' }}>
                     <option value="CASH">Cash</option>
+                    <option value="UPI">UPI</option>
                     <option value="BANK">Bank</option>
                     <option value="CHEQUE">Cheque</option>
                   </select>
