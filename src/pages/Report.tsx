@@ -121,7 +121,7 @@ const downloadPDF = (
 ) => {
   const name    = bal?.party.name    || partyName
   const mobile  = bal?.party.mobile  || '—'
-  const area    = bal?.party.area    || '—'
+  // const area    = bal?.party.area    || '—'
   const address = bal?.party.address || ''
   const today   = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
   const balance = formatCurrency(Math.abs(bal?.currentBalance ?? 0))
@@ -180,7 +180,6 @@ const downloadPDF = (
     <div><div class="brand">Udhari Khata<span>Smart Ledger Management</span></div></div>
     <div class="meta">
       <div style="font-size:14px;font-weight:700;color:#111827">${name}</div>
-      <div>${mobile}${area && area !== '—' ? ' · ' + area : ''}</div>
       ${address ? `<div>${address}</div>` : ''}
       <div>Generated: ${today}</div>
     </div>
@@ -498,7 +497,7 @@ const totalPaymentPay =txData?.filter((i)=>i.type=='debit').reduce((acc,i)=>i.am
                 <div>
                   <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '700', color: c.text }}>{selectedName}</h3>
                   <p style={{ margin: '2px 0 0', fontSize: '12px', color: c.textLight }}>
-                    {modalLoading ? 'Loading…' : balanceData ? `${balanceData.party.mobile} · ${balanceData.party.area || 'No area'}` : 'Party details'}
+                    {/* {modalLoading ? 'Loading…' : balanceData ? `${balanceData.party.mobile} · ${balanceData.party.area || 'No area'}` : 'Party details'} */}
                   </p>
                 </div>
               </div>
@@ -559,7 +558,7 @@ const totalPaymentPay =txData?.filter((i)=>i.type=='debit').reduce((acc,i)=>i.am
                     {[
                       { label: 'Name',    value: balanceData.party.name },
                       { label: 'Mobile',  value: balanceData.party.mobile },
-                      { label: 'Area',    value: balanceData.party.area    || '—' },
+                      // { label: 'Area',    value: balanceData.party.area    || '—' },
                     ].map(({ label, value }) => (
                       <div key={label}>
                         <label style={labelStyle}>{label}</label>
