@@ -380,7 +380,7 @@ export default function LedgerReport() {
                 <th style={thCol}>#</th>
                 <th style={thCol}>Party</th>
                 <th style={thCol}>Mobile</th>
-                <th style={thCol}>Area</th>
+                {/* <th style={thCol}>Area</th> */}
                 <th style={thCol}>
                   Current Balance
                   <button onClick={() => setSortAsc(a => !a)}
@@ -434,7 +434,7 @@ export default function LedgerReport() {
                           </div>
                         </td>
                         <td style={{ padding: '12px 16px', borderBottom: `1px solid ${c.border}`, color: c.text }}>{party.mobile}</td>
-                        <td style={{ padding: '12px 16px', borderBottom: `1px solid ${c.border}`, color: c.textLight }}>{party.area || '—'}</td>
+                        {/* <td style={{ padding: '12px 16px', borderBottom: `1px solid ${c.border}`, color: c.textLight }}>{party.area || '—'}</td> */}
                         <td style={{ padding: '12px 16px', borderBottom: `1px solid ${c.border}` }}>
                           <span style={{ fontWeight: '800', fontSize: '14px', color: bc }}>
                             {formatCurrency(Math.abs(party.currentBalance))}

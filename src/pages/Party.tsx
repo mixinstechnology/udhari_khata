@@ -76,10 +76,8 @@ const getStoredUser = () => {
 }
 
 const EMPTY_FORM: PartyPayload = {
-  name: '', mobile: '', email: '', area: '', address: '',
-  adharNumber: '', panNumber: '', gstNumber: '',
-  creditLimit: 0, openingBalance: 0, openingBalanceType: 'credit',
-  remark: '', isActive: true, isBlock: false, createdBy: '',
+  name: '', mobile: '', email: '', address: '',
+   isActive: true, isBlock: false, createdBy: '',
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -144,13 +142,16 @@ export default function PartyPage() {
     setEditing(party)
     setForm({
       name: party.name, mobile: party.mobile, email: party.email || '',
-      area: party.area || '', address: party.address || '',
-      adharNumber: party.adharNumber || '', panNumber: party.panNumber || '',
-      gstNumber: party.gstNumber || '', creditLimit: party.creditLimit ?? 0,
-      openingBalance: party.openingBalance ?? 0,
-      openingBalanceType: party.openingBalanceType ?? 'credit',
-      remark: party.remark || '', isActive: party.isActive,
-      isBlock: party.isBlock, createdBy: user._id,
+      // area: party.area || '', 
+      address: party.address || '',
+      // adharNumber: party.adharNumber || '', panNumber: party.panNumber || '',
+      // gstNumber: party.gstNumber || '', creditLimit: party.creditLimit ?? 0,
+      // openingBalance: party.openingBalance ?? 0,
+      // openingBalanceType: party.openingBalanceType ?? 'credit',
+      // remark: party.remark || '', 
+      isActive: party.isActive,
+      isBlock: party.isBlock,
+      createdBy: user._id,
     })
     setErrors({})
     setShowModal(true)
@@ -179,7 +180,9 @@ export default function PartyPage() {
       if (editing) {
         const payload: UpdatePartyPayload = {
           name: form.name.trim(), mobile: form.mobile.trim(),
-          area: form.area?.trim(), isActive: form.isActive, createdBy: user._id,
+          // area: form.area?.trim(), 
+           isActive: form.isActive, 
+           createdBy: user._id,
         }
         const res = await updateParty(editing._id, payload)
         if (res.success) { toast.success(res.message || 'Party updated'); closeModal(); fetchParties(page, search) }
@@ -282,7 +285,7 @@ export default function PartyPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
             <thead>
               <tr style={{ background: `${c.primary}08` }}>
-                {['#', 'Party', 'Mobile', 'Area', 'GST No.', 'Credit Limit', 'Opening Balance', 'Status', 'Actions'].map(h => (
+                {['#', 'Party', 'Mobile', 'Address', 'GST No.', 'Credit Limit', 'Opening Balance', 'Status', 'Actions'].map(h => (
                   <th key={h} style={{
                     padding: '12px 16px', textAlign: 'left', whiteSpace: 'nowrap',
                     fontSize: '11px', fontWeight: '700', color: c.textLight,
@@ -347,7 +350,7 @@ export default function PartyPage() {
                         </div>
                       </td>
                       <td style={{ padding: '13px 16px', borderBottom: `1px solid ${c.border}`, color: c.text }}>{party.mobile}</td>
-                      <td style={{ padding: '13px 16px', borderBottom: `1px solid ${c.border}`, color: c.textLight }}>{party.area || '—'}</td>
+                      <td style={{ padding: '13px 16px', borderBottom: `1px solid ${c.border}`, color: c.textLight }}>{party.address || '—'}</td>
                       <td style={{ padding: '13px 16px', borderBottom: `1px solid ${c.border}`, color: c.textLight, fontSize: '12px', fontFamily: 'monospace' }}>
                         {party.gstNumber || '—'}
                       </td>
@@ -480,10 +483,10 @@ export default function PartyPage() {
                   <label style={labelSt}>Email</label>
                   <input value={form.email} onChange={e => setField('email', e.target.value)} placeholder="email@example.com" type="email" style={inputSt()} />
                 </div>
-                <div>
+                {/* <div>
                   <label style={labelSt}>Area</label>
                   <input value={form.area} onChange={e => setField('area', e.target.value)} placeholder="City / Area" style={inputSt()} />
-                </div>
+                </div> */}
                 <div style={{ gridColumn: '1 / -1' }}>
                   <label style={labelSt}>Address</label>
                   <input value={form.address} onChange={e => setField('address', e.target.value)} placeholder="Full address" style={inputSt()} />
@@ -494,37 +497,37 @@ export default function PartyPage() {
                 <>
                   <p style={sectionTitle}>Business Details</p>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '20px' }}>
-                    <div>
+                    {/* <div>
                       <label style={labelSt}>Adhar Number</label>
                       <input value={form.adharNumber} onChange={e => setField('adharNumber', e.target.value)} placeholder="12-digit Adhar" maxLength={12} style={inputSt()} />
-                    </div>
-                    <div>
+                    </div> */}
+                    {/* <div>
                       <label style={labelSt}>PAN Number</label>
                       <input value={form.panNumber} onChange={e => setField('panNumber', e.target.value.toUpperCase())} placeholder="ABCDE1234F" maxLength={10} style={inputSt()} />
-                    </div>
-                    <div style={{ gridColumn: '1 / -1' }}>
+                    </div> */}
+                    {/* <div style={{ gridColumn: '1 / -1' }}>
                       <label style={labelSt}>GST Number</label>
                       <input value={form.gstNumber} onChange={e => setField('gstNumber', e.target.value.toUpperCase())} placeholder="22AAAAA0000A1Z5" maxLength={15} style={inputSt()} />
-                    </div>
-                    <div>
+                    </div> */}
+                    {/* <div>
                       <label style={labelSt}>Credit Limit (₹)</label>
                       <input value={form.creditLimit ?? ''} onChange={e => setField('creditLimit', Number(e.target.value))} placeholder="0" type="number" min={0} style={inputSt()} />
-                    </div>
-                    <div>
+                    </div> */}
+                    {/* <div>
                       <label style={labelSt}>Opening Balance (₹)</label>
                       <input value={form.openingBalance ?? ''} onChange={e => setField('openingBalance', Number(e.target.value))} placeholder="0" type="number" min={0} style={inputSt()} />
-                    </div>
-                    <div>
+                    </div> */}
+                    {/* <div>
                       <label style={labelSt}>Balance Type</label>
                       <select value={form.openingBalanceType} onChange={e => setField('openingBalanceType', e.target.value as 'credit' | 'debit')} style={{ ...inputSt(), cursor: 'pointer' }}>
                         <option value="credit">Credit</option>
                         <option value="debit">Debit </option>
                       </select>
-                    </div>
-                    <div>
+                    </div> */}
+                    {/* <div>
                       <label style={labelSt}>Remark</label>
                       <input value={form.remark} onChange={e => setField('remark', e.target.value)} placeholder="Optional note" style={inputSt()} />
-                    </div>
+                    </div> */}
                   </div>
                 </>
               )}

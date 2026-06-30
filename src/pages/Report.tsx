@@ -384,7 +384,7 @@ const totalPaymentPay =txData?.filter((i)=>i.type=='debit').reduce((acc,i)=>i.am
                 <th style={thCol}>#</th>
                 <th style={thCol}>Party</th>
                 <th style={thCol}>Mobile</th>
-                <th style={thCol}>Area</th>
+                {/* <th style={thCol}>Area</th> */}
                 <th style={thCol}>
                   Current Balance
                   <button onClick={() => setSortAsc(a => !a)}
@@ -438,7 +438,7 @@ const totalPaymentPay =txData?.filter((i)=>i.type=='debit').reduce((acc,i)=>i.am
                           </div>
                         </td>
                         <td style={{ padding: '12px 16px', borderBottom: `1px solid ${c.border}`, color: c.text }}>{party.mobile}</td>
-                        <td style={{ padding: '12px 16px', borderBottom: `1px solid ${c.border}`, color: c.textLight }}>{party.area || '—'}</td>
+                        {/* <td style={{ padding: '12px 16px', borderBottom: `1px solid ${c.border}`, color: c.textLight }}>{party.area || '—'}</td> */}
                         <td style={{ padding: '12px 16px', borderBottom: `1px solid ${c.border}` }}>
                           <span style={{ fontWeight: '800', fontSize: '14px', color: bc }}>
                             {formatCurrency(Math.abs(party.currentBalance))}

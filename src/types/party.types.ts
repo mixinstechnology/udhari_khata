@@ -15,21 +15,22 @@ export interface Party {
   isActive: boolean
   isBlock: boolean
   createdBy: string
+  currentBalance:number
 }
 
 export interface PartyPayload {
   name: string
   mobile: string
   email?: string
-  area?: string
+  // area?: string
   address?: string
-  adharNumber?: string
-  panNumber?: string
-  gstNumber?: string
-  creditLimit?: number
-  openingBalance?: number
-  openingBalanceType?: 'credit' | 'debit'
-  remark?: string
+  // adharNumber?: string
+  // panNumber?: string
+  // gstNumber?: string
+  // creditLimit?: number
+  // openingBalance?: number
+  // openingBalanceType?: 'credit' | 'debit'
+  // remark?: string
   isActive?: boolean
   isBlock?: boolean
   createdBy: string
@@ -38,7 +39,7 @@ export interface PartyPayload {
 export interface UpdatePartyPayload {
   name?: string
   mobile?: string
-  area?: string
+  // area?: string
   isActive?: boolean
   createdBy: string
 }
